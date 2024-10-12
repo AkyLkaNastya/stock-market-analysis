@@ -1,5 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import minimize
 
 data = pd.read_csv('stock_data_2018.csv')
 valid_tickers = data['Ticker'].unique().tolist()
@@ -44,11 +46,81 @@ risk_and_return = making(data, valid_tickers)
 
 filtered_risk_and_return = making(data[data['Ticker'].isin(selected_tickers)], selected_tickers)
 
-plt.figure(figsize=(9, 7))
-plt.scatter(risk_and_return['σ'], risk_and_return['E'])
-plt.scatter(filtered_risk_and_return['σ'], filtered_risk_and_return['E'], color='red')
-plt.title('«Карта» активов в системе координат (σ, E)')
-plt.xlabel('Риск (σ)')
-plt.ylabel('Ожидаемая доходность (E)')
-plt.grid()
-plt.show()
+# plt.figure(figsize=(9, 7))
+# plt.scatter(risk_and_return['σ'], risk_and_return['E'])
+# plt.scatter(filtered_risk_and_return['σ'], filtered_risk_and_return['E'], color='red')
+# plt.title('«Карта» активов в системе координат (σ, E)')
+# plt.xlabel('Риск (σ)')
+# plt.ylabel('Ожидаемая доходность (E)')
+# plt.grid()
+# plt.show()
+
+# Функция для расчета VaR
+def calculate_VaR(returns, alpha=0.05):
+    return -np.percentile(returns, 100 * alpha)
+
+# Функция для расчета CVaR
+def calculate_CVaR(returns, alpha=0.05):
+    VaR = calculate_VaR(returns, alpha)
+    return -returns[returns <= -VaR].mean()
+
+# Оптимизация портфеля без ограничений по коротким продажам
+def optimize_portfolio(risk_and_return, risk_aversion):
+    num_assets = risk_and_return.shape[0]
+
+    def portfolio_performance(weights):
+        returns = (weights * risk_and_return['E']).sum()
+        risk = np.sqrt((weights ** 2 * risk_and_return['σ'] ** 2).sum())
+        return risk_aversion * risk - returns
+
+    # Ограничение: сумма весов равна 1
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+
+    # Начальные веса
+    initial_weights = num_assets * [1. / num_assets,]
+
+    # Результат оптимизации
+    optimized = minimize(portfolio_performance, initial_weights, method='SLSQP', constraints=constraints)
+    return optimized.x
+
+# Оптимизация портфеля с ограничениями по коротким продажам
+def optimize_portfolio_no_short_sales(risk_and_return, risk_aversion):
+    num_assets = risk_and_return.shape[0]
+
+    def portfolio_performance(weights):
+        returns = (weights * risk_and_return['E']).sum()
+        risk = np.sqrt((weights ** 2 * risk_and_return['σ'] ** 2).sum())
+        return risk_aversion * risk - returns
+
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1}, 
+                   {'type': 'ineq', 'fun': lambda x: x})  # Все веса >= 0
+
+    initial_weights = num_assets * [1. / num_assets,]
+
+    optimized = minimize(portfolio_performance, initial_weights, method='SLSQP', constraints=constraints)
+    return optimized.x
+
+# Оцените свое отношение к риску (например, выберем значение 3)
+risk_aversion = 3
+
+# Определяем оптимальный портфель (с короткими продажами)
+optimal_portfolio = optimize_portfolio(filtered_risk_and_return, risk_aversion)
+print(f"Оптимальный портфель с короткими продажами: {optimal_portfolio}")
+
+# Оценка VaR и CVaR для портфеля
+portfolio_returns = np.dot(filtered_risk_and_return['σ'], optimal_portfolio)  # Пример расчета доходностей
+VaR = calculate_VaR(portfolio_returns)
+CVaR = calculate_CVaR(portfolio_returns)
+
+print(f"VaR: {VaR}, CVaR: {CVaR}")
+
+# Определяем оптимальный портфель (без коротких продаж)
+optimal_portfolio_no_short = optimize_portfolio_no_short_sales(filtered_risk_and_return, risk_aversion)
+print(f"Оптимальный портфель без коротких продаж: {optimal_portfolio_no_short}")
+
+# Оценка VaR и CVaR
+portfolio_returns_no_short = np.dot(filtered_risk_and_return['σ'], optimal_portfolio_no_short)  # Пример расчета доходностей
+VaR_no_short = calculate_VaR(portfolio_returns_no_short)
+CVaR_no_short = calculate_CVaR(portfolio_returns_no_short)
+
+print(f"VaR без коротких продаж: {VaR_no_short}, CVaR без коротких продаж: {CVaR_no_short}")
