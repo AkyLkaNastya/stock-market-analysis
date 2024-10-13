@@ -8,7 +8,68 @@ from scipy.optimize import minimize
 data = pd.read_csv('stock_data_2018.csv')
 tickers = data['Ticker'].unique()
 
-# Вычисляем оценки ожидаемых доходностей и стандартных отклонений
+# Вычисление оценки ожидаемых доходностей и стандартных отклонений
+def find_E_n_sigma(data, tickers):
+    expected_returns = {}
+    risks = {}
+
+    for ticker in tickers:
+        risk = data[data['Ticker'] == ticker]['log_return'].std()
+        expected_returns[ticker] = data[data['Ticker'] == ticker]['log_return'].mean()
+        risks[ticker] = risk
+
+    risk_and_return = pd.DataFrame({
+        'Ticker': expected_returns.keys(),
+        'E': expected_returns.values(),
+        'σ': risks.values()
+    })
+
+    return risk_and_return
+
+# Вычисление парето-оптимальных активов.
+def pareto_optimal(portfolio):
+    pareto_optimal_assets = []
+
+    assets = list(portfolio['Ticker'])
+    portfolio_ = find_E_n_sigma(data, assets)
+
+    E_values = np.array(list(portfolio_['E']))
+    Sigma_values = np.array(list(portfolio_['σ']))
+
+    for i in range(len(assets)):
+        current_E = E_values[i]
+        current_Sigma = Sigma_values[i]
+        is_optimal = True
+        for j in range(len(assets)):
+            if i != j:
+                if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
+                    is_optimal = False
+                    break
+        if is_optimal:
+            pareto_optimal_assets.append(assets[i])
+
+    return pareto_optimal_assets
+
+risk_and_return = find_E_n_sigma(data, tickers)
+
+''' =========  № 1  =========================================================================================================== '''
+'''
+'''
+'''
+'''
+''' =========================================================================================================================== '''
+
+pareto_optimal_assets = pareto_optimal(risk_and_return)
+
+# В нашем случае их получилось 35, а так как нам необходимо выбрать 50 активов, то нам надо найти ещё 15.
+to_find = 50 - len(pareto_optimal_assets)
+
+'''_______________________________________________________________________________________
+
+Рассчитываем Z-оценку для стандартных отклонений log_returns для каждого актива.
+И фильтруем активы с  Z-оценкой, превышающими заданный порог (в данном случае 3), чтобы уменьшить влияние выбросов.
+_______________________________________________________________________________________'''
+
 E_dict = {}
 Sigma_dict = {}
 
@@ -17,47 +78,14 @@ for ticker in tickers:
     E_dict[ticker] = data[data['Ticker'] == ticker]['log_return'].mean()
     Sigma_dict[ticker] = risk
 
-# ''' =========  № 1  =========================================================================================================== '''
-# '''
-# '''
-# '''
-# '''
-# ''' =========================================================================================================================== '''
-
-# Находим парето-оптимальные активы.
-pareto_optimal_assets = []
-
-assets = list(E_dict.keys())
-
 E_values = np.array(list(E_dict.values()))
 Sigma_values = np.array(list(Sigma_dict.values()))
-
-for i in range(len(assets)):
-    current_E = E_values[i]
-    current_Sigma = Sigma_values[i]
-    is_optimal = True
-    for j in range(len(assets)):
-        if i != j:
-            if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
-                is_optimal = False
-                break
-    if is_optimal:
-        pareto_optimal_assets.append(assets[i])
-
-# В нашем случае их получилось 35, а так как нам необходимо выбрать 50 активов, то нам надо найти ещё 15.
-to_find = 15
-
-'''_______________________________________________________________________________________
-
-Рассчитываем Z-оценку для стандартных отклонений log_returns для каждого актива.
-И фильтруем активы с  Z-оценкой, превышающими заданный порог (в данном случае 3), чтобы уменьшить влияние выбросов.
-_______________________________________________________________________________________'''
 
 z_scores = np.abs(stats.zscore(Sigma_values))
 threshold = 3
 filtered_Sigma_values = Sigma_values[(z_scores < threshold)]
 filtered_E_values = E_values[(z_scores < threshold)]
-filtered_assets = np.array(assets)[(z_scores < threshold)]
+filtered_assets = np.array(tickers)[(z_scores < threshold)]
 
 correlation_matrix = data.pivot_table(values='log_return', index='Date', columns='Ticker').corr()
 
@@ -103,7 +131,7 @@ if added_assets < to_find:
             break
 
 # # Тикеры компаний, входящих в набор из 50 активов:
-selected_tickers = ['ACNB34.SA', 'AGRO3.SA', 'ATSA11.SA', 'BAHI3.SA', 'BCRI11.SA',
+selected_tickers_ = ['ACNB34.SA', 'AGRO3.SA', 'ATSA11.SA', 'BAHI3.SA', 'BCRI11.SA',
                       'BRAX11.SA', 'COCA34.SA', 'CPFE3.SA', 'DHER34.SA', 'ENGI11.SA',
                       'EQMA3B.SA', 'ESUT11.SA', 'FISC11.SA', 'FLRP11.SA', 'FRIO3.SA',
                       'HFOF11.SA', 'ITUB3.SA', 'IVVB11.SA', 'KNHY11.SA', 'KNIP11.SA',
@@ -114,24 +142,6 @@ selected_tickers = ['ACNB34.SA', 'AGRO3.SA', 'ATSA11.SA', 'BAHI3.SA', 'BCRI11.SA
                       'RSUL4.SA', 'MSPA4.SA', 'CLSC3.SA', 'DOHL4.SA', 'BSLI4.SA',
                       'EALT4.SA', 'BALM4.SA', 'BAUH4.SA', 'CTSA4.SA', 'CEED4.SA']
 
-def find_E_n_sigma(data, tickers):
-    expected_returns = {}
-    risks = {}
-
-    for ticker in tickers:
-        risk = data[data['Ticker'] == ticker]['log_return'].std()
-        expected_returns[ticker] = data[data['Ticker'] == ticker]['log_return'].mean()
-        risks[ticker] = risk
-
-    risk_and_return = pd.DataFrame({
-        'Ticker': expected_returns.keys(),
-        'E': expected_returns.values(),
-        'σ': risks.values()
-    })
-
-    return risk_and_return
-
-risk_and_return = find_E_n_sigma(data, tickers)
 selected_risk_and_return = find_E_n_sigma(data, selected_tickers)
 
 # Построение карты активов с выделением выбранных.
@@ -283,72 +293,18 @@ def count_sales(portfolio):
 portfolio_with_short_sales = optimization(None, constraints_with_short_sales)
 portfolio_without_short_sales = optimization(0, constraints_without_short_sales)
 
-# Находим парето-оптимальные активы.
-pareto_optimal_assets = []
+def draw_portfolio(portfolio, size):
+    with_short_sales = find_E_n_sigma(data, portfolio['Ticker'])
+    with_short_and_pareto = find_E_n_sigma(data, pareto_optimal(with_short_sales))
 
-assets = list(portfolio_with_short_sales['Ticker'])
-portfolio_short_sales = find_E_n_sigma(data, assets)
+    plt.figure(figsize=(8, 3))
+    plt.scatter(with_short_sales['σ'], with_short_sales['E'], s=size)
+    plt.scatter(with_short_and_pareto['σ'], with_short_and_pareto['E'], color='red', s=size)
+    plt.title('Эффективный фронт и оптимальный портфель с разрешением коротких продаж')
+    plt.xlabel('Риск (σ)')
+    plt.ylabel('Ожидаемая доходность (E)')
+    plt.grid()
+    plt.show()
 
-# Находим парето-оптимальные активы.
-pareto_optimal_assets = []
-
-E_values = np.array(list(portfolio_short_sales['E']))
-Sigma_values = np.array(list(portfolio_short_sales['σ']))
-
-for i in range(len(assets)):
-    current_E = E_values[i]
-    current_Sigma = Sigma_values[i]
-    is_optimal = True
-    for j in range(len(assets)):
-        if i != j:
-            if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
-                is_optimal = False
-                break
-    if is_optimal:
-        pareto_optimal_assets.append(assets[i])
-
-pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
-
-plt.figure(figsize=(7, 5))
-plt.scatter(portfolio_short_sales['σ'], portfolio_short_sales['E'], s=10)
-plt.scatter(pareto_optimal['σ'], pareto_optimal['E'], color='red', s=10)
-plt.title('Эффективный фронт и оптимальный портфель с разрешением коротких продаж')
-plt.xlabel('Риск (σ)')
-plt.ylabel('Ожидаемая доходность (E)')
-plt.grid()
-plt.show()
-
-# # Находим парето-оптимальные активы.
-# pareto_optimal_assets = []
-
-# assets = list(portfolio_without_short_sales['Ticker'])
-# portfolio_no_short_sales = find_E_n_sigma(data, assets)
-
-# # Находим парето-оптимальные активы.
-# pareto_optimal_assets = []
-
-# E_values = np.array(list(portfolio_no_short_sales['E']))
-# Sigma_values = np.array(list(portfolio_no_short_sales['σ']))
-
-# for i in range(len(assets)):
-#     current_E = E_values[i]
-#     current_Sigma = Sigma_values[i]
-#     is_optimal = True
-#     for j in range(len(assets)):
-#         if i != j:
-#             if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
-#                 is_optimal = False
-#                 break
-#     if is_optimal:
-#         pareto_optimal_assets.append(assets[i])
-
-# pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
-
-# plt.figure(figsize=(7, 5))
-# plt.scatter(portfolio_no_short_sales['σ'], portfolio_no_short_sales['E'])
-# plt.scatter(pareto_optimal['σ'], pareto_optimal['E'], color='red')
-# plt.title('Эффективный фронт и оптимальный портфель с запретом коротких продаж')
-# plt.xlabel('Риск (σ)')
-# plt.ylabel('Ожидаемая доходность (E)')
-# plt.grid()
-# plt.show()
+draw_portfolio(portfolio_with_short_sales, 5)
+draw_portfolio(portfolio_without_short_sales, 30)
