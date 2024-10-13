@@ -24,83 +24,83 @@ for ticker in tickers:
 # '''
 # ''' =========================================================================================================================== '''
 
-# # Находим парето-оптимальные активы.
-# pareto_optimal_assets = []
+# Находим парето-оптимальные активы.
+pareto_optimal_assets = []
 
-# assets = list(E_dict.keys())
+assets = list(E_dict.keys())
 
-# E_values = np.array(list(E_dict.values()))
-# Sigma_values = np.array(list(Sigma_dict.values()))
+E_values = np.array(list(E_dict.values()))
+Sigma_values = np.array(list(Sigma_dict.values()))
 
-# for i in range(len(assets)):
-#     current_E = E_values[i]
-#     current_Sigma = Sigma_values[i]
-#     is_optimal = True
-#     for j in range(len(assets)):
-#         if i != j:
-#             if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
-#                 is_optimal = False
-#                 break
-#     if is_optimal:
-#         pareto_optimal_assets.append(assets[i])
+for i in range(len(assets)):
+    current_E = E_values[i]
+    current_Sigma = Sigma_values[i]
+    is_optimal = True
+    for j in range(len(assets)):
+        if i != j:
+            if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
+                is_optimal = False
+                break
+    if is_optimal:
+        pareto_optimal_assets.append(assets[i])
 
-# # В нашем случае их получилось 35, а так как нам необходимо выбрать 50 активов, то нам надо найти ещё 15.
-# to_find = 15
+# В нашем случае их получилось 35, а так как нам необходимо выбрать 50 активов, то нам надо найти ещё 15.
+to_find = 15
 
-# '''_______________________________________________________________________________________
+'''_______________________________________________________________________________________
 
-# Рассчитываем Z-оценку для стандартных отклонений log_returns для каждого актива.
-# И фильтруем активы с  Z-оценкой, превышающими заданный порог (в данном случае 3), чтобы уменьшить влияние выбросов.
-# _______________________________________________________________________________________'''
+Рассчитываем Z-оценку для стандартных отклонений log_returns для каждого актива.
+И фильтруем активы с  Z-оценкой, превышающими заданный порог (в данном случае 3), чтобы уменьшить влияние выбросов.
+_______________________________________________________________________________________'''
 
-# z_scores = np.abs(stats.zscore(Sigma_values))
-# threshold = 3
-# filtered_Sigma_values = Sigma_values[(z_scores < threshold)]
-# filtered_E_values = E_values[(z_scores < threshold)]
-# filtered_assets = np.array(assets)[(z_scores < threshold)]
+z_scores = np.abs(stats.zscore(Sigma_values))
+threshold = 3
+filtered_Sigma_values = Sigma_values[(z_scores < threshold)]
+filtered_E_values = E_values[(z_scores < threshold)]
+filtered_assets = np.array(assets)[(z_scores < threshold)]
 
-# correlation_matrix = data.pivot_table(values='log_return', index='Date', columns='Ticker').corr()
+correlation_matrix = data.pivot_table(values='log_return', index='Date', columns='Ticker').corr()
 
-# selected_tickers = []
+selected_tickers = []
 
-# selected_tickers.extend(pareto_optimal_assets)
+selected_tickers.extend(pareto_optimal_assets)
 
-# '''_______________________________________________________________________________________
+'''_______________________________________________________________________________________
 
-# Цель этих циклов - обеспечить отбор достаточного количества активов,
-# начиная с тех, которые наименее коррелируют с Парето-оптимальными активами,
-# а затем, при необходимости, с теми, которые наиболее коррелируют.
+Цель этих циклов - обеспечить отбор достаточного количества активов,
+начиная с тех, которые наименее коррелируют с Парето-оптимальными активами,
+а затем, при необходимости, с теми, которые наиболее коррелируют.
 
-# Этот подход направлен на диверсификацию ассортимента
-# при одновременном обеспечении положительной ожидаемой доходности выбранных активов.
-# ______________________________________________________________________________________'''
+Этот подход направлен на диверсификацию ассортимента
+при одновременном обеспечении положительной ожидаемой доходности выбранных активов.
+______________________________________________________________________________________'''
 
 
-# added_assets = 0
-# for asset in pareto_optimal_assets:
-#     correlations = correlation_matrix[asset]
-#     sorted_correlations = correlations.sort_values(ascending=True)
-#     for ticker in sorted_correlations.index:
-#         if ticker not in selected_tickers and ticker != asset and E_dict[ticker] > 0:
-#             selected_tickers.append(ticker)
-#             added_assets += 1
-#             if added_assets == to_find:
-#                 break
-#     if added_assets == to_find:
-#         break
+added_assets = 0
+for asset in pareto_optimal_assets:
+    correlations = correlation_matrix[asset]
+    sorted_correlations = correlations.sort_values(ascending=True)
+    for ticker in sorted_correlations.index:
+        if ticker not in selected_tickers and ticker != asset and E_dict[ticker] > 0:
+            selected_tickers.append(ticker)
+            added_assets += 1
+            if added_assets == to_find:
+                break
+    if added_assets == to_find:
+        break
 
-# if added_assets < to_find:
-#     for asset in pareto_optimal_assets:
-#         correlations = correlation_matrix[asset]
-#         sorted_correlations = correlations.sort_values(ascending=False)
-#         for ticker in sorted_correlations.index:
-#             if ticker not in selected_tickers and ticker != asset and E_dict[ticker] > 0:
-#                 selected_tickers.append(ticker)
-#                 added_assets += 1
-#                 if added_assets == to_find:
-#                     break
-#         if added_assets == to_find:
-#             break
+if added_assets < to_find:
+    for asset in pareto_optimal_assets:
+        correlations = correlation_matrix[asset]
+        sorted_correlations = correlations.sort_values(ascending=False)
+        for ticker in sorted_correlations.index:
+            if ticker not in selected_tickers and ticker != asset and E_dict[ticker] > 0:
+                selected_tickers.append(ticker)
+                added_assets += 1
+                if added_assets == to_find:
+                    break
+        if added_assets == to_find:
+            break
 
 # # Тикеры компаний, входящих в набор из 50 активов:
 selected_tickers = ['ACNB34.SA', 'AGRO3.SA', 'ATSA11.SA', 'BAHI3.SA', 'BCRI11.SA',
@@ -133,8 +133,6 @@ def find_E_n_sigma(data, tickers):
 
 risk_and_return = find_E_n_sigma(data, tickers)
 selected_risk_and_return = find_E_n_sigma(data, selected_tickers)
-
-print(selected_risk_and_return)
 
 # Построение карты активов с выделением выбранных.
 
@@ -283,4 +281,74 @@ def count_sales(portfolio):
 
 
 portfolio_with_short_sales = optimization(None, constraints_with_short_sales)
-#portfolio_without_short_sales = optimization(0, constraints_without_short_sales)
+portfolio_without_short_sales = optimization(0, constraints_without_short_sales)
+
+# Находим парето-оптимальные активы.
+pareto_optimal_assets = []
+
+assets = list(portfolio_with_short_sales['Ticker'])
+portfolio_short_sales = find_E_n_sigma(data, assets)
+
+# Находим парето-оптимальные активы.
+pareto_optimal_assets = []
+
+E_values = np.array(list(portfolio_short_sales['E']))
+Sigma_values = np.array(list(portfolio_short_sales['σ']))
+
+for i in range(len(assets)):
+    current_E = E_values[i]
+    current_Sigma = Sigma_values[i]
+    is_optimal = True
+    for j in range(len(assets)):
+        if i != j:
+            if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
+                is_optimal = False
+                break
+    if is_optimal:
+        pareto_optimal_assets.append(assets[i])
+
+pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
+
+plt.figure(figsize=(7, 5))
+plt.scatter(portfolio_short_sales['σ'], portfolio_short_sales['E'], s=10)
+plt.scatter(pareto_optimal['σ'], pareto_optimal['E'], color='red', s=10)
+plt.title('Эффективный фронт и оптимальный портфель с разрешением коротких продаж')
+plt.xlabel('Риск (σ)')
+plt.ylabel('Ожидаемая доходность (E)')
+plt.grid()
+plt.show()
+
+# # Находим парето-оптимальные активы.
+# pareto_optimal_assets = []
+
+# assets = list(portfolio_without_short_sales['Ticker'])
+# portfolio_no_short_sales = find_E_n_sigma(data, assets)
+
+# # Находим парето-оптимальные активы.
+# pareto_optimal_assets = []
+
+# E_values = np.array(list(portfolio_no_short_sales['E']))
+# Sigma_values = np.array(list(portfolio_no_short_sales['σ']))
+
+# for i in range(len(assets)):
+#     current_E = E_values[i]
+#     current_Sigma = Sigma_values[i]
+#     is_optimal = True
+#     for j in range(len(assets)):
+#         if i != j:
+#             if (E_values[j] >= current_E and Sigma_values[j] <= current_Sigma):
+#                 is_optimal = False
+#                 break
+#     if is_optimal:
+#         pareto_optimal_assets.append(assets[i])
+
+# pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
+
+# plt.figure(figsize=(7, 5))
+# plt.scatter(portfolio_no_short_sales['σ'], portfolio_no_short_sales['E'])
+# plt.scatter(pareto_optimal['σ'], pareto_optimal['E'], color='red')
+# plt.title('Эффективный фронт и оптимальный портфель с запретом коротких продаж')
+# plt.xlabel('Риск (σ)')
+# plt.ylabel('Ожидаемая доходность (E)')
+# plt.grid()
+# plt.show()
