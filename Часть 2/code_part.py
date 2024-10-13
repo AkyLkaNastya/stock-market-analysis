@@ -293,18 +293,20 @@ def count_sales(portfolio):
 portfolio_with_short_sales = optimization(None, constraints_with_short_sales)
 portfolio_without_short_sales = optimization(0, constraints_without_short_sales)
 
-def draw_portfolio(portfolio, size):
+def draw_portfolio(portfolio, size, flag):
     with_short_sales = find_E_n_sigma(data, portfolio['Ticker'])
     with_short_and_pareto = find_E_n_sigma(data, pareto_optimal(with_short_sales))
 
     plt.figure(figsize=(8, 3))
     plt.scatter(with_short_sales['σ'], with_short_sales['E'], s=size)
     plt.scatter(with_short_and_pareto['σ'], with_short_and_pareto['E'], color='red', s=size)
+    if flag:
+        plt.xlim(0, 0.6)
     plt.title('Эффективный фронт и оптимальный портфель с разрешением коротких продаж')
     plt.xlabel('Риск (σ)')
     plt.ylabel('Ожидаемая доходность (E)')
     plt.grid()
     plt.show()
 
-draw_portfolio(portfolio_with_short_sales, 5)
+draw_portfolio(portfolio_with_short_sales, 5, True)
 draw_portfolio(portfolio_without_short_sales, 30)
