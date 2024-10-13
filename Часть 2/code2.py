@@ -134,6 +134,71 @@ plt.grid()
 plt.show()
 '''
 
+n_min_risk_assets = 10
+weights = np.zeros(len(selected_tickers))
+returns = np.zeros(len(selected_tickers))
+
+# Цикл проходится по каждому выбранному тикеру, присваивая равный вес каждому активу в портфеле,
+# что дает равновзвешенный портфель.
+for i, ticker in enumerate(selected_tickers):
+    weights[i] = 1 / len(selected_tickers)
+    returns[i] = E_dict[ticker]
+
+portfolio_df = pd.DataFrame({'Tickers': selected_tickers})
+portfolio_df['Sigma'] = portfolio_df['Tickers'].map(Sigma_dict)
+portfolio_df['Sigma_squared'] = [x*x for x in portfolio_df['Sigma']]
+
+def portfolio_variance(weights_):
+    cov_matrix = portfolio_df[['Sigma_squared']].to_numpy()
+    portfolio_variance_ = weights_.T @ cov_matrix
+    portfolio_variance_ = np.sum(portfolio_variance_ * weights_)
+    return portfolio_variance_
+
+#Ограничение гарантирует, что сумма весов равна 1, что позволяет осуществлять короткие продажи (веса могут быть отрицательными).
+constraints_with_short_sales = (
+    {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},
+)
+
+# constraints_without_short_sales также гарантирует, что сумма весов равна 1,
+# но добавляет ограничение неравенства, чтобы гарантировать, что все веса неотрицательны, запрещая короткие продажи.
+constraints_without_short_sales = (
+    {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},
+    {'type': 'ineq', 'fun': lambda x: x},
+)
+
+result_without_short_sales = minimize(portfolio_variance, weights, method='SLSQP', constraints=constraints_without_short_sales)
+optimal_weights = result_without_short_sales.x
+top_10_assets_no_short_sales = np.argsort(optimal_weights)[-n_min_risk_assets:]
+
+plt.figure(figsize=(10, 6))
+for i in top_10_assets_no_short_sales:
+    print(selected_tickers[i])
+    plt.scatter(E_dict[selected_tickers[i]], Sigma_dict[selected_tickers[i]], color='orange', s=100)
+    plt.annotate(selected_tickers[i], (E_dict[selected_tickers[i]], Sigma_dict[selected_tickers[i]]), fontsize=8)
+plt.scatter(E_dict['KNIP11.SA'], Sigma_dict['KNIP11.SA'], color='orange',
+            s=100)
+plt.xlabel('Риск (σ)')
+plt.ylabel('Ожидаемая доходность (E)')
+plt.title('Активы с минимальным риском (короткие продажи запрещены)')
+plt.grid(True)
+
+result_with_short_sales = minimize(portfolio_variance, weights, method='SLSQP', constraints=constraints_with_short_sales)
+optimal_weights = result_with_short_sales.x
+top_10_assets_no_short_sales = np.argsort(optimal_weights)[-n_min_risk_assets:]
+
+plt.figure(figsize=(10, 6))
+for i in top_10_assets_no_short_sales:
+    print(selected_tickers[i])
+    plt.scatter(E_dict[selected_tickers[i]], Sigma_dict[selected_tickers[i]], color='orange', s=100)
+    plt.annotate(selected_tickers[i], (E_dict[selected_tickers[i]], Sigma_dict[selected_tickers[i]]), fontsize=8)
+plt.scatter(E_dict['FRIO3.SA'], Sigma_dict['FRIO3.SA'], color='orange',
+            s=100)
+plt.xlabel('Риск (σ)')
+plt.ylabel('Ожидаемая доходность (E)')
+plt.title('Активы с минимальным риском (короткие продажи разрешены)')
+plt.grid(True)
+plt.show()
+
 # def portfolio_optimization(returns, cov_matrix, risk_free_rate=0.01, allow_short=True):
 #     num_assets = len(returns)
 #     args = (returns, cov_matrix, risk_free_rate)
