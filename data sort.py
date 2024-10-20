@@ -26,4 +26,4 @@ for ticker in tickers[:1]:
     
     new_data[ticker] = np.log(current_ticker['Close'] / current_ticker['Close'].shift(1))
 
-new_data.to_csv('test.csv')
+new_data.to_csv('data_log_return.csv')
