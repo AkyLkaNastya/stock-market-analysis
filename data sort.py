@@ -21,6 +21,8 @@ ________________________________________________________________________________
 for ticker in tickers[:1]:
     current_ticker = pd.DataFrame()
     current_ticker['Date'] = data[data['Ticker'] == ticker]['Date']
+    if current_ticker.shape[0] < 200:
+        continue
     current_ticker['Close'] = data[data['Ticker'] == ticker]['Close']
     current_ticker = current_ticker.set_index('Date')
     
