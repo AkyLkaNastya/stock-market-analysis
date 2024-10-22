@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 #pd.set_option('display.max_rows',None)
 
-data = pd.read_csv('dateslog.csv')
+data = pd.read_csv("..\data_log_return.csv")
 tickers = list(data.columns)
 tickers.pop(0)
 
@@ -29,7 +29,6 @@ def find_E_n_sigma(data, tickers):
     return risk_and_return
 
 # Функция для поиска Парето-оптимальных активов
-
 def find_pareto_optimal(portfolio):
     pareto_optimal_assets = []
 
@@ -64,7 +63,7 @@ risk_and_return = find_E_n_sigma(data, tickers)
 
 pareto_optimal_assets = find_pareto_optimal(risk_and_return)
 
-# В нашем случае их получилось 35, а так как нам необходимо выбрать 50 активов, то нам надо найти ещё 15.
+# Так как нам надо найти 50 активов, то вычетаем из 50 уже найденные
 to_find = 50 - len(pareto_optimal_assets)
 
 '''_______________________________________________________________________________________
@@ -132,18 +131,6 @@ if added_assets < to_find:
                     break
         if added_assets == to_find:
             break
-
-# # Тикеры компаний, входящих в набор из 50 активов:
-selected_tickers_ = ['ARNC34.SA', 'ATSA11.SA', 'AZEV3.SA', 'CEGR3.SA', 'CPTS11.SA',
-                     'FISC11.SA', 'HETA3.SA', 'HFOF11.SA', 'IRBR3.SA', 'LILY34.SA',
-                     'MDTC34.SA', 'MRCK34.SA', 'PATI4.SA', 'RMAI11.SA', 'TGAR11.SA',
-                     'VRTA11.SA', 'VVCR11.SA', 'WTSP11.SA', 'MERC4.SA', 'RAPT4.SA',
-                     'SANB4.SA', 'PLAS3.SA', 'CRPG3.SA', 'OUJP11.SA', 'RNDP11.SA',
-                     'BNBR3.SA', 'BIIB34.SA', 'SANB11.SA', 'ENGI11.SA', 'MOVI3.SA',
-                     'DISB34.SA', 'DEAI34.SA', 'CEED3.SA', 'KNIP11.SA', 'POMO4.SA',
-                     'CGAS3.SA', 'TEND3.SA', 'TRVC34.SA', 'JSRE11.SA', 'MOSC34.SA',
-                     'DUKB34.SA', 'SPTW11.SA', 'RAIL3.SA', 'CMIG3.SA', 'MAXR11.SA',
-                     'CMCS34.SA', 'ITLC34.SA', 'AMER3.SA', 'CEBR5.SA', 'MULT3.SA']
 
 selected_risk_and_return = find_E_n_sigma(data, selected_tickers)
 
