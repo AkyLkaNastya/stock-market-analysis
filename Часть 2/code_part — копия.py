@@ -4,11 +4,13 @@ import numpy as np
 from scipy import stats
 from scipy.optimize import minimize
 
-#pd.set_option('display.max_rows',None)
+pd.set_option('display.max_rows',None)
 
-data = pd.read_csv("..\data_log_return.csv")
+data = pd.read_csv("data_log_return.csv")
 tickers = list(data.columns)
 tickers.pop(0)
+
+print(data)
 
 # Вычисление оценки ожидаемых доходностей и стандартных отклонений
 def find_E_n_sigma(data, tickers):
@@ -131,7 +133,7 @@ if added_assets < to_find:
                     break
         if added_assets == to_find:
             break
-
+print(selected_tickers)
 selected_risk_and_return = find_E_n_sigma(data, selected_tickers)
 
 # Построение карты активов с выделенными выбранными.

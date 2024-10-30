@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 #pd.set_option('display.max_rows',None)
 
-data = pd.read_csv("..\data_log_return.csv")
+data = pd.read_csv("data_log_return.csv")
 tickers = list(data.columns)
 tickers.pop(0)
 
@@ -37,12 +37,12 @@ def find_E_n_sigma(data, tickers):
 risk_and_return = find_E_n_sigma(data, tickers)
 
 # Построение карты активов с выделенными выбранными.
-plt.figure(figsize=(11, 9))
-plt.scatter(risk_and_return['σ'], risk_and_return['E'], s=10, color='grey')
-plt.title('«Карта» активов в системе координат (σ, E)')
-plt.xlabel('Риск (σ)')
-plt.ylabel('Ожидаемая доходность (E)')
-plt.grid()
+# plt.figure(figsize=(11, 9))
+# plt.scatter(risk_and_return['σ'], risk_and_return['E'], s=10, color='grey')
+# plt.title('«Карта» активов в системе координат (σ, E)')
+# plt.xlabel('Риск (σ)')
+# plt.ylabel('Ожидаемая доходность (E)')
+# plt.grid()
 # plt.show()
 
 ''' =========  № 2  =========================================================================================================== '''
@@ -111,3 +111,11 @@ def historicalCVaR(returns, alpha):
 
     else:
         raise TypeError("Expected returns to be dataframe or series")
+
+for ticker in pareto_optimal_assets:
+    
+    returns = pd.DataFrame(data[ticker])
+
+    VaR = -historicalVaR(returns, 95)
+    CVaR = -historicalCVaR(returns, 95)
+    print(f'{ticker}: VaR:  {VaR}, CVaR: {CVaR}')
