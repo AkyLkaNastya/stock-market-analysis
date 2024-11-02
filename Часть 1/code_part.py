@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
-from scipy.optimize import minimize
+from scipy.stats import norm
 
 pd.set_option('display.max_rows',None)
 
@@ -16,7 +16,6 @@ tickers.pop(0)
 '''
 ''' =========================================================================================================================== '''
 
-# Вычисление оценки ожидаемых доходностей и стандартных отклонений
 def find_E_n_sigma(data, tickers):
     expected_returns = {}
     risks = {}
@@ -51,7 +50,8 @@ risk_and_return = find_E_n_sigma(data, tickers)
 '''
 ''' =========================================================================================================================== '''
 
-# Функция для поиска Парето-оптимальных активов
+print('='*20, 'Парето-оптимальные активы', '='*20)
+
 pareto_optimal_assets = []
 
 for i in range(len(risk_and_return['Ticker'])):
@@ -68,6 +68,8 @@ for i in range(len(risk_and_return['Ticker'])):
 
 pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
 
+print(pareto_optimal)
+
 ''' =========  № 3  =========================================================================================================== '''
 '''      Value at Risk и Conditional Value at Risk
 ###
@@ -78,43 +80,86 @@ pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
 '''      
 ''' =========================================================================================================================== '''
 
-# def make_returns(portfolio):
-#     ticker_returns = pd.DataFrame()
+print('='*10, 'Оценка VaR и CVaR для Парето-оптимальных активов', '='*10)
 
-#     for ticker in portfolio:
-#         ticker_returns['log_return'] = pd.DataFrame(data[ticker]).reset_index(drop=True)
-    
-#     return ticker_returns['log_return']
+confidence_level = 95
 
-# def historicalVaR(returns, alpha):
+def monte_carlo_simulation(returns, num_simulations=10000):
+    mean = returns.mean()
+    std_dev = returns.std()
+    simulated_returns = np.random.normal(mean, std_dev, (num_simulations, len(returns)))
+    return simulated_returns
 
-#     if isinstance(returns, pd.Series):
-#         return np.percentile(returns, alpha)
+def calculate_historical_var_cvar(returns, confidence_level):
+    var = -np.percentile(returns, 100 - confidence_level)
+    losses = -returns
+    var_threshold = np.percentile(losses, confidence_level)
+    cvar = losses[losses >= var_threshold].mean()
+    return var, cvar
 
-#     elif isinstance(returns, pd.DataFrame):
-#         return returns.aggregate(historicalVaR, alpha=alpha)
+def calculate_parametric_var_cvar(returns, confidence_level):
+    mean = returns.mean()
+    std_dev = returns.std()
+    var = -norm.ppf(1 - confidence_level / 100) * std_dev + mean
+    cvar = -mean + std_dev * norm.pdf(norm.ppf(confidence_level / 100)) / (1 - confidence_level / 100)
+    return var, cvar
 
-#     else:
-#         raise TypeError("Expected returns to be dataframe or series")
+def calculate_monte_carlo_var_cvar(simulated_returns, confidence_level):
+    var = -np.percentile(simulated_returns, 100 - confidence_level, axis=0)
+    losses = -simulated_returns
+    var_threshold = np.percentile(losses, confidence_level, axis=0)
+    cvar = losses[losses >= var_threshold].mean(axis=0)
+    return var, cvar
 
-# def historicalCVaR(returns, alpha):
+historical_method = pd.DataFrame()
+historical_method['Ticker'] = pareto_optimal_assets
+historical_method = historical_method.set_index('Ticker')
+historical_method['VaR'] = np.nan
+historical_method['CVaR'] = np.nan
 
-#     if isinstance(returns, pd.Series):
-#         belowVaR = returns <= historicalVaR(returns, alpha=alpha)
-#         return returns[belowVaR].mean()
+parametric_method = pd.DataFrame()
+parametric_method['Ticker'] = pareto_optimal_assets
+parametric_method = parametric_method.set_index('Ticker')
+parametric_method['VaR'] = np.nan
+parametric_method['CVaR'] = np.nan
 
-#     elif isinstance(returns, pd.DataFrame):
-#         return returns.aggregate(historicalCVaR, alpha=alpha)
+monte_carlo_method = pd.DataFrame()
+monte_carlo_method['Ticker'] = pareto_optimal_assets
+monte_carlo_method = monte_carlo_method.set_index('Ticker')
+monte_carlo_method['VaR'] = np.nan
+monte_carlo_method['CVaR'] = np.nan
 
-#     else:
-#         raise TypeError("Expected returns to be dataframe or series")
+for ticker in pareto_optimal_assets:
+    log_returns = data[ticker].dropna()
 
-# for ticker in pareto_optimal_assets:
-#     returns = pd.DataFrame(data[ticker])
-#     VaR = -historicalVaR(returns, 95)
-#     CVaR = -historicalCVaR(returns, 95)
-#     # print(f'{ticker}: VaR:  {VaR}, CVaR: {CVaR}')
-#     print(VaR)
+    var, cvar = calculate_historical_var_cvar(log_returns, confidence_level)
+    if var == 0:
+        historical_method.loc[ticker, 'VaR'] = 0
+    else:
+        historical_method.loc[ticker, 'VaR'] = var
+    historical_method.loc[ticker, 'CVaR'] = cvar
+
+    var, cvar = calculate_parametric_var_cvar(log_returns, confidence_level)
+    parametric_method.loc[ticker, 'VaR'] = var
+    parametric_method.loc[ticker, 'CVaR'] = cvar
+
+    simulated_returns = monte_carlo_simulation(log_returns)
+    var, cvar = calculate_monte_carlo_var_cvar(simulated_returns, confidence_level)
+    if isinstance(var, np.ndarray):
+        var = var.mean()
+    if isinstance(cvar, np.ndarray):
+        cvar = cvar.mean()
+    monte_carlo_method.loc[ticker, 'VaR'] = var
+    monte_carlo_method.loc[ticker, 'CVaR'] = cvar
+
+print('==== Исторический метод =====')
+print(historical_method.sort_values('VaR').sort_values('CVaR'))
+
+print('\n=== Параметрический метод ===')
+print(parametric_method.sort_values('VaR').sort_values('CVaR'))
+
+print('\n===== Метод Монте-Карло =====')
+print(monte_carlo_method.sort_values('VaR').sort_values('CVaR'))
 
 ''' =========  № 4  =========================================================================================================== '''
 '''      Распределение доходностей конкретного актива
@@ -125,6 +170,15 @@ pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
 '''      
 ''' =========================================================================================================================== '''
 
+selected_tickers = []
+
+for ticker in tickers:
+    returns = data[ticker].dropna() # Удаляем NaN, если они есть
+    lst = data[ticker].tolist()
+    if returns.shape[0] == 245 and lst.count(0) <= 1 and risk_and_return.loc[risk_and_return['Ticker'] == ticker]['E'].values[0] > 0:
+        selected_tickers.append(ticker)
+    if len(selected_tickers) >= 5:
+        break
 
 
 ''' =========  № 5  =========================================================================================================== '''
@@ -139,18 +193,19 @@ pareto_optimal = find_E_n_sigma(data, pareto_optimal_assets)
 import seaborn as sns
 from scipy import stats
 
-selected_tickers = []
-
-for ticker in tickers:
-    returns = data[ticker].dropna() # Удаляем NaN, если они есть
-    lst = data[ticker].tolist()
-    if returns.shape[0] == 245 and lst.count(0) <= 1 and risk_and_return.loc[risk_and_return['Ticker'] == ticker]['E'].values[0] > 0:
-        selected_tickers.append(ticker)
-    if len(selected_tickers) >= 5:
-        break
-
 for ticker in selected_tickers:
     returns = data[ticker].dropna() # Удаляем NaN, если они есть
+
+    print('='*10, ticker, '='*70, '\n')
+
+    # Тест Шапиро-Уилка
+    stat, p_value = stats.shapiro(returns)
+    print(f'Статистика = {stat}, p-значение = {p_value}')
+    if p_value > 0.05:
+        print(f'Распределение логарифмических доходностей можно считать нормальным (p > 0.05) \n')
+    else:
+        print(f'Распределение логарифмических доходностей не является нормальным (p <= 0.05) \n')
+
 
     plt.figure(figsize=(7, 3))
     plt.subplot(1, 2, 1)
@@ -170,12 +225,8 @@ for ticker in selected_tickers:
     plt.tight_layout()
     plt.show()
 
-    print('='*10, ticker, '='*40, '\n')
-
-    # Тест Шапиро-Уилка
-    stat, p_value = stats.shapiro(returns)
-    print(f'Статистика = {stat}, p-значение = {p_value}')
-    if p_value > 0.05:
-        print(f'Распределение логарифмических доходностей можно считать нормальным (p > 0.05) \n')
-    else:
-        print(f'Распределение логарифмических доходностей не является нормальным (p <= 0.05) \n')
+''' =========  № 6  =========================================================================================================== '''
+'''
+###      Поиск чего-нибудь интересного (необычного) на рынке.
+'''
+''' =========================================================================================================================== '''
